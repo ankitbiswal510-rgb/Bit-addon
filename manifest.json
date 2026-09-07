@@ -1,8 +1,8 @@
 {
   "id": "com.waddon.hifi",
   "name": "Waddon Hi-Fi",
-  "version": "1.0.0",
-  "description": "Hi-Res Lossless FLAC provider for BitChord via Qobuz, Deezer, and Monochrome",
+  "version": "2.0.0",
+  "description": "Hi-Res Lossless FLAC provider for BitChord via Qobuz (primary), Deezer (metadata) and Audius (fallback)",
   "types": ["music", "audio"],
   "resources": ["stream", "meta", "search"],
   "endpoint": "/api"
