@@ -1,6 +1,10 @@
 [build]
-  publish = "public"
   functions = "netlify/functions"
+
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
 
 [[redirects]]
   from = "/api/*"
@@ -10,5 +14,4 @@
 [[redirects]]
   from = "/health"
   to = "/.netlify/functions/health"
-  status = 200
-  
+  status = 200  
