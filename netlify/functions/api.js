@@ -1,93 +1,63 @@
 const axios = require('axios');
 
-exports.handler = async (event) => {
+const MONOCHROME_API = 'https://api.monochrome.tf';
+
+exports.handler = async function (event, context) {
+  const params = event.queryStringParameters || {};
+  const searchQuery = params.query || params.q || params.id;
+
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type"
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+  if (!searchQuery) {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ status: "online", backend: "Monochrome Proxy" })
+    };
   }
 
-  const query = event.queryStringParameters || {};
-  const { trackId, provider = 'qobuz' } = query;
-
   try {
-    // 1. Qobuz Direct Stream (Your Account)
-    if (provider === 'qobuz') {
-      const qobuzRes = await axios.get(`https://www.qobuz.com/api.json/0.2/track/getFileUrl`, {
-        params: {
-          track_id: trackId,
-          format_id: 27, // 24-bit Hi-Res FLAC
-          app_id: process.env.QOBUZ_APP_ID,
-          user_auth_token: process.env.QOBUZ_USER_TOKEN
-        }
-      });
+    let trackId = searchQuery;
 
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          status: 'success',
-          provider: 'Qobuz',
-          format: 'Hi-Res FLAC (24-bit)',
-          url: qobuzRes.data.url
-        })
-      };
-    } 
-    
-    // 2. Monochrome Public TIDAL Fallback Proxy
-    else if (provider === 'monochrome' || provider === 'tidal') {
-      const monochromeRes = await axios.get(`https://api.monochrome.tf/track`, {
-        params: { id: trackId },
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36',
-          'Referer': 'https://monochrome.tf/'
-        }
-      });
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          status: 'success',
-          provider: 'Tidal (via Monochrome)',
-          format: 'Hi-Res FLAC / Master',
-          url: monochromeRes.data.url || monochromeRes.data.streamUrl
-        })
-      };
-    } 
-    
-    // 3. Deezer Metadata Stream
-    else if (provider === 'deezer') {
-      const deezerRes = await axios.get(`https://api.deezer.com/track/${trackId}`);
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          status: 'success',
-          provider: 'Deezer',
-          format: 'FLAC (16-bit)',
-          title: deezerRes.data.title,
-          artist: deezerRes.data.artist.name,
-          preview_url: deezerRes.data.preview
-        })
-      };
+    // 1. If input is a search string instead of an ID, query the search endpoint first
+    if (isNaN(searchQuery)) {
+      const searchRes = await axios.get(`${MONOCHROME_API}/search?q=${encodeURIComponent(searchQuery)}`);
+      const tracks = searchRes.data.items || searchRes.data.tracks || [];
+      if (!tracks.length) throw new Error("No tracks found on backend.");
+      trackId = tracks[0].id;
     }
 
+    // 2. Fetch track stream details using the resolved track ID
+    const streamRes = await axios.get(`${MONOCHROME_API}/track/${trackId}`);
+    const streamData = streamRes.data;
+
     return {
-      statusCode: 400,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ error: 'Specify provider=qobuz, provider=monochrome, or provider=deezer' })
+      body: JSON.stringify({
+        status: "success",
+        stream: {
+          url: streamData.streamUrl || streamData.url,
+          format: "FLAC",
+          bitrate: 1411,
+          sampleRate: 44100,
+          bitDepth: 16
+        }
+      })
     };
   } catch (error) {
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({
+        status: "error",
+        message: "Failed to resolve stream.",
+        details: error.message
+      })
     };
   }
 };
