@@ -1,11 +1,9 @@
 [build]
+  publish = "public"
   functions = "netlify/functions"
 
-[[redirects]]
-  from = "/manifest.json"
-  to = "/manifest.json"
-  status = 200
-
+# Route every /api/* request (query string and BitChord-style path params)
+# to the stream-provider function.
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
@@ -14,4 +12,4 @@
 [[redirects]]
   from = "/health"
   to = "/.netlify/functions/health"
-  status = 200  
+  status = 200
